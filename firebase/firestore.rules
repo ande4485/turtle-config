@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+		
+
+    match /users/{userId} {
+      allow list: if request.auth != null && request.auth.uid == userId; 
+     
+      allow get: if request.auth != null && request.auth.uid == userId;
+
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && !request.resource.data.keys().hasAny(['devices']);
+    }
+    match /devices/{deviceId} {
+    
+    function isOneOfTheseRoles() {
+    	return resource.data.admin == request.auth.uid || resource.data.idBox == request.auth.uid;
+    }
+      
+      allow read: if request.auth != null && isOneOfTheseRoles();
+      allow create,delete,update: if false;
+      
+    }
+    match /devices/{deviceId}/messages/{document=**}{
+       
+      allow read,create,update: if request.auth != null &&  verifyUserForTurtle(deviceId, request.auth.uid);
+      
+    }
+    
+    function verifyUserForTurtle(deviceId, userId){
+      let device = get(/databases/$(database)/documents/devices/$(deviceId)).data;
+      return device.idBox == userId || userId in device.usersAllowed;
+      	
+    }
+
+  }
+}
